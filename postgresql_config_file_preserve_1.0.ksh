@@ -95,7 +95,7 @@ ip a >${rbkpdir}/${rpfix}/ipdetails_${sfix};
 df -h >${rbkpdir}/${rpfix}/fsinfo_${sfix};
 free -k >${rbkpdir}/${rpfix}/memswapinfo_${sfix};
 grep -i huge /proc/meminfo >${rbkpdir}/${rpfix}/cuhugepageinfo_${sfix};
-# error rerouted in case root has no cron
+# error rerouted in case user has no cron
 crontab -l >${rbkpdir}/${rpfix}/cron_${sfix} 2>/dev/null;
 id postgres >${rbkpdir}/${rpfix}/postgresusr_${sfix};
 id barman >${rbkpdir}/${rpfix}/barmanusr_${sfix} 2>/dev/null;
