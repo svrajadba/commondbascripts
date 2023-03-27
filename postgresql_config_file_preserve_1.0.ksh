@@ -6,7 +6,7 @@
 # Script capability
 #           1. Preserve OS config file relevant to the postgresql setup
 #           2. Preserve Postgresql config files relevant to the postgresql setup
-#           3. Preserve last postgresql logfile
+#           3. Preserve last postgresql logfile [include this in os file list to copy]
 # Inputs needed:
 #           1. Hostname where the data needs to be collected
 #           2. Port # of the postgresql service we needed the data collected. If more than one, please list them comma seperated
@@ -93,6 +93,7 @@ cat /etc/oracle-release >${rbkpdir}/${rpfix}/etcrelease_${sfix} 2>/dev/null;
 cat /etc/centos-release >${rbkpdir}/${rpfix}/etcrelease_${sfix} 2>/dev/null;
 ip a >${rbkpdir}/${rpfix}/ipdetails_${sfix};
 df -h >${rbkpdir}/${rpfix}/fsinfo_${sfix};
+lscpu >${rbkpdir}/${rpfix}/cpuinfo_${sfix};
 free -k >${rbkpdir}/${rpfix}/memswapinfo_${sfix};
 grep -i huge /proc/meminfo >${rbkpdir}/${rpfix}/cuhugepageinfo_${sfix};
 # error rerouted in case user has no cron
@@ -132,6 +133,8 @@ select * from pg_stat_activity order by datname,state,pid;
 select * from pg_hba_file_rules order by 1;
 select * from pg_stat_wal_receiver;
 EOFPSQL
+CUPGDATA=$(psql -p ${rprtn} -q -t -c "show data_directory");
+${PGBIN}/bin/pg_controldata ${CUPGDATA} >${rbkpdir}/${rpfix}/pgctrldata_${rprtn}_${sfix}.out
 }
 
 pgcfgcoll()
@@ -271,4 +274,5 @@ do
     ssh postgres@${hstndmn} "$(typeset -f srvflcpy); srvflcpy ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${pstgrsprcid}";
     echo "${hstndmn} - ${prtn} - Postgresql Service File Preserved";
 done
+echo "${hstndmn} - Config Files are dumped in ${bkpdir}/${gpfix}_${hstndmn}_${dt}."
 echo "${hstndmn} - All Steps are completed.Thanks"
