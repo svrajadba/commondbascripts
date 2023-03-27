@@ -1,0 +1,6 @@
+/etc/hosts
+/etc/fstab
+/etc/sysctl.conf
+/etc/default/grub
+/etc/security/limits.conf
+/etc/passwd
