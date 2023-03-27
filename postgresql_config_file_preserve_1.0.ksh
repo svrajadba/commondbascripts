@@ -88,9 +88,9 @@ echo $PATH >${rbkpdir}/${rpfix}/pathvar_${sfix};
 date >${rbkpdir}/${rpfix}/cudt_${sfix};
 uname -a >${rbkpdir}/${rpfix}/serverkernelinfo_${sfix};
 # error rerouted in case if the os isnt redhat or oracle or centos
-cat /etc/redhat-release >${rbkpdir}/${rpfix}/etcrelease_${sfix} 2>/dev/null;
-cat /etc/oracle-release >${rbkpdir}/${rpfix}/etcrelease_${sfix} 2>/dev/null;
-cat /etc/centos-release >${rbkpdir}/${rpfix}/etcrelease_${sfix} 2>/dev/null;
+cat /etc/redhat-release >${rbkpdir}/${rpfix}/etcrelease_redhat_${sfix} 2>/dev/null;
+cat /etc/oracle-release >${rbkpdir}/${rpfix}/etcrelease_oracle_${sfix} 2>/dev/null;
+cat /etc/centos-release >${rbkpdir}/${rpfix}/etcrelease_centos_${sfix} 2>/dev/null;
 ip a >${rbkpdir}/${rpfix}/ipdetails_${sfix};
 df -h >${rbkpdir}/${rpfix}/fsinfo_${sfix};
 lscpu >${rbkpdir}/${rpfix}/cpuinfo_${sfix};
@@ -213,7 +213,7 @@ fi
 
 # main function routine
 # verify if basic os commands are installed
-ssh postgres@${hstndmn} "which netstat" >/dev/null 2>&1 && echo "OS_Command_netstat_PreCheck: OK" || die 101 oscommand_netstat_availability_failed;
+ssh -q postgres@${hstndmn} "which netstat" >/dev/null 2>&1 && echo "OS_Command_netstat_PreCheck: OK" || die 101 oscommand_netstat_availability_failed;
 
 # verify if osconfig_file.lst file is found; which includes all the os config list to be preserved
 if ! [ -f ${cfgfldir}/osconfig_file.lst ];
@@ -222,7 +222,7 @@ then
 fi
 
 # initialize the directory to preserve the settings
-ssh postgres@${hstndmn} "$(typeset -f initializedir); initializedir ${bkpdir} ${gpfix}_${hstndmn}_${dt}"
+ssh -q postgres@${hstndmn} "$(typeset -f initializedir); initializedir ${bkpdir} ${gpfix}_${hstndmn}_${dt}"
 if [ $? -ne 0 ];
 then
     die 101 "initializedir_failed";
@@ -233,20 +233,20 @@ fi
 # fixed os config file copy routine
 while read line
 do
-ssh postgres@${hstndmn} "$(typeset -f commonflcpyflow); commonflcpyflow ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${line}" </dev/null;
+ssh -q postgres@${hstndmn} "$(typeset -f commonflcpyflow); commonflcpyflow ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${line}" </dev/null;
 done < ${cfgfldir}/osconfig_file.lst
 
 echo "${hstndmn} - Postgresql Specific OS config file copy finished";
 
 # fixed os command outputs preserve
-ssh postgres@${hstndmn} "$(typeset -f oscommandflow); oscommandflow ${bkpdir} ${gpfix}_${hstndmn}_${dt}"
+ssh -q postgres@${hstndmn} "$(typeset -f oscommandflow); oscommandflow ${bkpdir} ${gpfix}_${hstndmn}_${dt}"
 # skipping failure check here; since the command overall carries forward all the commands within's exit status using && operation; which is robust. But we expect some failures due to some non-existent object or setup.
 
 echo "${hstndmn} - Postgresql Specific OS Command Output preserved";
 
 for prtn in $(echo ${pstgrsprtlst}|tr ',' '\n')
 do
-    ssh postgres@${hstndmn} "netstat -plantu|grep ${prtn}|grep LISTEN" >/dev/null 2>&1;
+    ssh -q postgres@${hstndmn} "netstat -plantu|grep ${prtn}|grep LISTEN" >/dev/null 2>&1;
     if [ $? -eq 0 ];
     then
         echo "${hstndmn} - ${prtn} - port active: OK";
@@ -254,8 +254,8 @@ do
         echo "${hstndmn} - ${prtn} - port active: NOK";
         continue;
     fi
-    pstgrsprcid=$(ssh postgres@${hstndmn} "netstat -plantu 2>/dev/null|grep ${prtn}|grep -v tcp6|grep tcp|awk '{print \$7}'|cut -d '/' -f 1");
-    ssh postgres@${hstndmn} "$(typeset -f psqlflow); psqlflow ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${pstgrsprcid}";
+    pstgrsprcid=$(ssh -q postgres@${hstndmn} "netstat -plantu 2>/dev/null|grep ${prtn}|grep -v tcp6|grep tcp|grep LISTEN|awk '{print \$7}'|cut -d '/' -f 1");
+    ssh -q postgres@${hstndmn} "$(typeset -f psqlflow); psqlflow ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${pstgrsprcid}";
     if [ $? -ne 0 ];
     then
         die 101 "psqlflow_${prtn}_failed";
@@ -263,15 +263,15 @@ do
         echo "${hstndmn} - ${prtn} - Postgresql Psql Command Output preserved";
     fi
     # prepare postgresql filelist to copy
-    psgcfgfile=$(ssh postgres@${hstndmn} "$(typeset -f pgcfgcoll); pgcfgcoll ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${pstgrsprcid}");
+    psgcfgfile=$(ssh -q postgres@${hstndmn} "$(typeset -f pgcfgcoll); pgcfgcoll ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${pstgrsprcid}");
     echo "${hstndmn} - ${prtn} - Postgresql Config File Details collected";
     # use pstgrsflcpyflow routine to preserve postgresql config files
     for fl in ${psgcfgfile}
     do
-        ssh postgres@${hstndmn} "$(typeset -f pstgrsflcpyflow); pstgrsflcpyflow ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${fl}" </dev/null;
+        ssh -q postgres@${hstndmn} "$(typeset -f pstgrsflcpyflow); pstgrsflcpyflow ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${fl}" </dev/null;
     done
     # Copy Postgres Service File
-    ssh postgres@${hstndmn} "$(typeset -f srvflcpy); srvflcpy ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${pstgrsprcid}";
+    ssh -q postgres@${hstndmn} "$(typeset -f srvflcpy); srvflcpy ${bkpdir} ${gpfix}_${hstndmn}_${dt} ${prtn} ${pstgrsprcid}";
     echo "${hstndmn} - ${prtn} - Postgresql Service File Preserved";
 done
 echo "${hstndmn} - Config Files are dumped in ${bkpdir}/${gpfix}_${hstndmn}_${dt}."
